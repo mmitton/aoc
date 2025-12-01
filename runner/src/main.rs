@@ -18,6 +18,7 @@ fn register(runners: &mut BTreeMap<(usize, usize), (u8, NewRunner)>) {
     aoc_2022::register(runners);
     aoc_2023::register(runners);
     aoc_2024::register(runners);
+    aoc_2025::register(runners);
 }
 
 fn today(year: usize, month: usize, day: usize) -> (usize, usize) {
