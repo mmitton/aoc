@@ -11,11 +11,20 @@ impl Day02 {
         Self::default()
     }
 
+    fn fill_id_str(mut id: usize, id_str: &mut Vec<u8>) {
+        id_str.clear();
+        while id != 0 {
+            id_str.push((id % 10) as u8);
+            id /= 10;
+        }
+    }
+
     fn part1(&mut self) -> Result<helper::RunOutput, Error> {
         let mut bad = 0;
+        let mut id_str = Vec::with_capacity(64);
         for (low, high) in self.ranges.iter() {
             'scan: for id in *low..=*high {
-                let id_str: Vec<char> = id.to_string().chars().collect();
+                Self::fill_id_str(id, &mut id_str);
                 if id_str.len().is_multiple_of(2) {
                     let a = &id_str[0..id_str.len() / 2];
                     let b = &id_str[id_str.len() / 2..];
@@ -31,14 +40,14 @@ impl Day02 {
 
     fn part2(&mut self) -> Result<helper::RunOutput, Error> {
         let mut bad = 0;
+        let mut id_str = Vec::with_capacity(64);
         for (low, high) in self.ranges.iter() {
             for id in *low..=*high {
-                let id_str: Vec<char> = id.to_string().chars().collect();
+                Self::fill_id_str(id, &mut id_str);
                 'scan: for n in 1..=id_str.len() / 2 {
                     if id_str.len().is_multiple_of(n) {
                         let a = &id_str[0..n];
-                        for m in (n..id_str.len()).step_by(n) {
-                            let b = &id_str[m..m + n];
+                        for b in id_str.chunks(n).skip(1) {
                             if a != b {
                                 continue 'scan;
                             }
