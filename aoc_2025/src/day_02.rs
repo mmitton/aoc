@@ -6,33 +6,71 @@ pub struct Day02 {
     ranges: Vec<(usize, usize)>,
 }
 
+struct ID {
+    slice: Vec<u8>,
+}
+
+impl ID {
+    fn new() -> Self {
+        Self {
+            slice: Vec::with_capacity(64),
+        }
+    }
+
+    fn initialize(&mut self, mut id: usize) {
+        self.slice.clear();
+        while id != 0 {
+            self.slice.push((id % 10) as u8);
+            id /= 10;
+        }
+    }
+
+    fn inc(&mut self) {
+        for n in self.slice.iter_mut() {
+            *n += 1;
+            if *n == 10 {
+                *n = 0;
+            } else {
+                return;
+            }
+        }
+        self.slice.push(1);
+    }
+
+    fn len(&self) -> usize {
+        self.slice.len()
+    }
+
+    fn check_bad(&self, n: usize) -> bool {
+        if self.slice.len().is_multiple_of(n) {
+            let a = &self.slice[0..n];
+            for b in self.slice.chunks(n).skip(1) {
+                if a != b {
+                    return false;
+                }
+            }
+            true
+        } else {
+            false
+        }
+    }
+}
+
 impl Day02 {
     pub fn new() -> Self {
         Self::default()
     }
 
-    fn fill_id_str(mut id: usize, id_str: &mut Vec<u8>) {
-        id_str.clear();
-        while id != 0 {
-            id_str.push((id % 10) as u8);
-            id /= 10;
-        }
-    }
-
     fn part1(&mut self) -> Result<helper::RunOutput, Error> {
         let mut bad = 0;
-        let mut id_str = Vec::with_capacity(64);
+        let mut id_slice = ID::new();
         for (low, high) in self.ranges.iter() {
-            'scan: for id in *low..=*high {
-                Self::fill_id_str(id, &mut id_str);
-                if id_str.len().is_multiple_of(2) {
-                    let a = &id_str[0..id_str.len() / 2];
-                    let b = &id_str[id_str.len() / 2..];
-                    if a == b {
-                        bad += id;
-                        continue 'scan;
-                    }
+            id_slice.initialize(*low);
+            for id in *low..=*high {
+                if id_slice.len().is_multiple_of(2) && id_slice.check_bad(id_slice.len() / 2) {
+                    bad += id;
                 }
+                id_slice.inc();
             }
         }
         Ok(bad.into())
@@ -40,22 +78,17 @@ impl Day02 {
 
     fn part2(&mut self) -> Result<helper::RunOutput, Error> {
         let mut bad = 0;
-        let mut id_str = Vec::with_capacity(64);
+        let mut id_slice = ID::new();
         for (low, high) in self.ranges.iter() {
+            id_slice.initialize(*low);
             for id in *low..=*high {
-                Self::fill_id_str(id, &mut id_str);
-                'scan: for n in 1..=id_str.len() / 2 {
-                    if id_str.len().is_multiple_of(n) {
-                        let a = &id_str[0..n];
-                        for b in id_str.chunks(n).skip(1) {
-                            if a != b {
-                                continue 'scan;
-                            }
-                        }
+                for n in 1..=id_slice.len() / 2 {
+                    if id_slice.check_bad(n) {
                         bad += id;
-                        break 'scan;
+                        break;
                     }
                 }
+                id_slice.inc();
             }
         }
         Ok(bad.into())
