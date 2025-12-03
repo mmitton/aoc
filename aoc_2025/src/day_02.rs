@@ -3,9 +3,10 @@ use helper::{Error, HashMap, HashSet, Lines, LinesOpt, print, println};
 
 #[derive(Default)]
 pub struct Day02 {
-    ranges: Vec<(usize, usize)>,
+    ranges: Vec<IDRange>,
 }
 
+#[derive(Clone)]
 struct ID {
     slice: Vec<u8>,
 }
@@ -23,36 +24,99 @@ impl ID {
             self.slice.push((id % 10) as u8);
             id /= 10;
         }
+        self.slice.reverse();
     }
 
-    fn inc(&mut self) {
-        for n in self.slice.iter_mut() {
-            *n += 1;
-            if *n == 10 {
-                *n = 0;
+    fn inc(&mut self, len: usize) -> bool {
+        for pos in (0..len).rev() {
+            if self.slice[pos] != 9 {
+                self.slice[pos] += 1;
+                return true;
             } else {
-                return;
+                self.slice[pos] = 0;
             }
         }
-        self.slice.push(1);
+        false
     }
 
-    fn len(&self) -> usize {
-        self.slice.len()
+    fn splat(&mut self, len: usize) {
+        for i in len..self.slice.len() {
+            self.slice[i] = self.slice[i % len];
+        }
+    }
+}
+
+impl From<usize> for ID {
+    fn from(value: usize) -> Self {
+        let mut id = Self::new();
+        id.initialize(value);
+        id
+    }
+}
+
+impl From<&ID> for usize {
+    fn from(value: &ID) -> Self {
+        value.slice.iter().fold(0, |v, c| (v * 10) + *c as usize)
+    }
+}
+
+#[derive(Debug)]
+struct IDRange {
+    low: usize,
+    high: usize,
+}
+
+impl IDRange {
+    fn new(mut low: usize, high: usize) -> Vec<Self> {
+        let mut ranges = Vec::new();
+
+        while low.ilog10() != high.ilog10() {
+            let low_high = 10usize.pow(low.ilog10() + 1) - 1;
+            ranges.push(Self {
+                low,
+                high: low_high,
+            });
+            low = low_high + 1;
+        }
+        ranges.push(Self { low, high });
+
+        ranges
     }
 
-    fn check_bad(&self, n: usize) -> bool {
-        if self.slice.len().is_multiple_of(n) {
-            let a = &self.slice[0..n];
-            for b in self.slice.chunks(n).skip(1) {
-                if a != b {
-                    return false;
+    fn calc_bad_ids(&self, part1: bool) -> Vec<usize> {
+        let total_len = self.low.ilog10() as usize + 1;
+        let min_len = match part1 {
+            false => 1,
+            true if total_len.is_multiple_of(2) => total_len / 2,
+            true => return Vec::new(),
+        };
+
+        let low_slice: ID = self.low.into();
+        let mut cur_slice: ID = low_slice.clone();
+
+        let mut bad_ids = HashSet::default();
+        for len in min_len..=total_len / 2 {
+            if total_len.is_multiple_of(len) {
+                cur_slice.slice.copy_from_slice(&low_slice.slice);
+                loop {
+                    cur_slice.splat(len);
+
+                    let bad_id: usize = (&cur_slice).into();
+                    if bad_id > self.high {
+                        break;
+                    }
+                    if bad_id >= self.low {
+                        bad_ids.insert(bad_id);
+                    }
+
+                    if !cur_slice.inc(len) {
+                        break;
+                    }
                 }
             }
-            true
-        } else {
-            false
         }
+
+        bad_ids.iter().copied().collect()
     }
 }
 
@@ -62,36 +126,21 @@ impl Day02 {
     }
 
     fn part1(&mut self) -> Result<helper::RunOutput, Error> {
-        let mut bad = 0;
-        let mut id_slice = ID::new();
-        for (low, high) in self.ranges.iter() {
-            id_slice.initialize(*low);
-            for id in *low..=*high {
-                if id_slice.len().is_multiple_of(2) && id_slice.check_bad(id_slice.len() / 2) {
-                    bad += id;
-                }
-                id_slice.inc();
-            }
-        }
-        Ok(bad.into())
+        Ok(self
+            .ranges
+            .iter()
+            .map(|range| range.calc_bad_ids(true).iter().sum::<usize>())
+            .sum::<usize>()
+            .into())
     }
 
     fn part2(&mut self) -> Result<helper::RunOutput, Error> {
-        let mut bad = 0;
-        let mut id_slice = ID::new();
-        for (low, high) in self.ranges.iter() {
-            id_slice.initialize(*low);
-            for id in *low..=*high {
-                for n in 1..=id_slice.len() / 2 {
-                    if id_slice.check_bad(n) {
-                        bad += id;
-                        break;
-                    }
-                }
-                id_slice.inc();
-            }
-        }
-        Ok(bad.into())
+        Ok(self
+            .ranges
+            .iter()
+            .map(|range| range.calc_bad_ids(false).iter().sum::<usize>())
+            .sum::<usize>()
+            .into())
     }
 }
 
@@ -102,7 +151,7 @@ impl helper::Runner for Day02 {
             if let Some((low, high)) = range.split_once('-') {
                 let low = low.parse()?;
                 let high = high.parse()?;
-                self.ranges.push((low, high));
+                self.ranges.extend(IDRange::new(low, high));
             } else {
                 return Err(Error::InvalidInput(range.into()));
             }
