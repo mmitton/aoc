@@ -11,40 +11,29 @@ impl Day03 {
         Self::default()
     }
 
-    fn max_joltage(bank: &[u8], cur_joltage: usize, remaining: u32) -> Option<usize> {
-        if remaining == 0 {
-            return Some(cur_joltage);
-        }
-        if bank.len() < remaining as usize {
-            return None;
-        }
-        let mut max_joltage: Option<usize> = None;
-        let mut best = 0;
-        for i in (0..bank.len()).rev() {
-            if bank[i] < best {
-                continue;
-            }
-            if let Some(joltage) = Self::max_joltage(
-                &bank[i + 1..],
-                bank[i] as usize + (cur_joltage * 10),
-                remaining - 1,
-            ) {
-                let mj = max_joltage.unwrap_or_default();
-                if joltage > mj {
-                    best = bank[i];
-                    max_joltage = Some(joltage);
+    fn max_joltage(mut bank: &[u8], remaining: usize) -> usize {
+        let mut joltage = 0;
+
+        for remaining in (1..=remaining).rev() {
+            assert!(remaining <= bank.len());
+            let mut best_pos = bank.len() - remaining;
+            for i in (0..bank.len() - remaining).rev() {
+                if bank[best_pos] <= bank[i] {
+                    best_pos = i;
                 }
             }
-        }
 
-        max_joltage
+            joltage = (joltage * 10) + bank[best_pos] as usize;
+            bank = &bank[best_pos + 1..];
+        }
+        joltage
     }
 
     fn part1(&mut self) -> Result<helper::RunOutput, Error> {
         Ok(self
             .banks
             .iter()
-            .map(|bank| Self::max_joltage(bank, 0, 2).unwrap_or_default())
+            .map(|bank| Self::max_joltage(bank, 2))
             .sum::<usize>()
             .into())
     }
@@ -53,11 +42,7 @@ impl Day03 {
         Ok(self
             .banks
             .iter()
-            .map(|bank| {
-                let joltage = Self::max_joltage(bank, 0, 12).unwrap_or_default();
-                println!("{joltage}");
-                joltage
-            })
+            .map(|bank| Self::max_joltage(bank, 12))
             .sum::<usize>()
             .into())
     }
