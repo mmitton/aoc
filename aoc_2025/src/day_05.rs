@@ -25,10 +25,7 @@ impl Day05 {
 
     fn part2(&mut self) -> Result<helper::RunOutput, Error> {
         'scan: for i in 0..self.fresh.len() {
-            for j in 0..self.fresh.len() {
-                if i == j {
-                    continue;
-                }
+            for j in i + 1..self.fresh.len() {
                 if *self.fresh[j].start() == usize::MAX {
                     continue;
                 }
