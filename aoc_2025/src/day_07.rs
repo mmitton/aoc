@@ -1,8 +1,11 @@
 #[allow(unused_imports)]
-use helper::{print, println, Error, HashMap, HashSet, Lines, LinesOpt};
+use helper::{Error, HashMap, HashSet, Lines, LinesOpt, print, println};
 
 #[derive(Default)]
-pub struct Day07 {}
+pub struct Day07 {
+    map: Vec<Vec<isize>>,
+    start: isize,
+}
 
 impl Day07 {
     pub fn new() -> Self {
@@ -10,17 +13,67 @@ impl Day07 {
     }
 
     fn part1(&mut self) -> Result<helper::RunOutput, Error> {
-        Err(Error::Unsolved)
+        let mut splits = 0;
+        let mut cur = HashSet::default();
+        let mut next = HashSet::default();
+        cur.insert(self.start);
+        for row in self.map.iter() {
+            next.clear();
+            for c in cur.iter() {
+                if row.contains(c) {
+                    next.insert(c - 1);
+                    next.insert(c + 1);
+                    splits += 1;
+                } else {
+                    next.insert(*c);
+                }
+            }
+
+            std::mem::swap(&mut cur, &mut next);
+        }
+        Ok(splits.into())
     }
 
     fn part2(&mut self) -> Result<helper::RunOutput, Error> {
-        Err(Error::Unsolved)
+        let mut cur = HashMap::default();
+        let mut next = HashMap::default();
+        cur.insert(self.start, 1);
+        for row in self.map.iter() {
+            next.clear();
+            for (c, paths) in cur.iter() {
+                if row.contains(c) {
+                    *next.entry(c - 1).or_insert(0) += paths;
+                    *next.entry(c + 1).or_insert(0) += paths;
+                } else {
+                    *next.entry(*c).or_insert(0) += paths;
+                }
+            }
+
+            std::mem::swap(&mut cur, &mut next);
+        }
+
+        Ok(cur.values().sum::<usize>().into())
     }
 }
 
 impl helper::Runner for Day07 {
     fn parse(&mut self, file: &[u8], _part: u8) -> Result<(), Error> {
-        let _lines = Lines::from_bufread(file, LinesOpt::RAW)?;
+        let lines = Lines::from_bufread(file, LinesOpt::RAW)?;
+        let mut lines = lines.iter();
+        self.start = lines
+            .next()
+            .unwrap()
+            .chars()
+            .position(|c| c == 'S')
+            .unwrap() as isize;
+        for line in lines {
+            self.map.push(
+                line.chars()
+                    .enumerate()
+                    .filter_map(|(i, c)| if c == '^' { Some(i as isize) } else { None })
+                    .collect(),
+            );
+        }
         Ok(())
     }
 
