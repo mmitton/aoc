@@ -17,20 +17,20 @@ impl Day08 {
     }
 
     fn part1(&mut self) -> Result<helper::RunOutput, Error> {
-        let mut distances: Vec<(isize, usize, usize)> = Vec::new();
+        let mut distances: Vec<(u64, u32, u32)> = Vec::new();
         for i in 0..self.junctions.len() {
             for j in i + 1..self.junctions.len() {
                 let dist = self.junctions[i]
                     .coord
                     .euclidean_dist_squared(&self.junctions[j].coord);
-                distances.push((dist, i, j));
+                distances.push((dist as u64, i as u32, j as u32));
             }
         }
         distances.sort();
         let iters = if self.junctions.len() == 20 { 10 } else { 1000 };
         for (_, i, j) in distances.iter().take(iters).copied() {
-            let from = self.junctions[j].circuit;
-            let to = self.junctions[i].circuit;
+            let from = self.junctions[j as usize].circuit;
+            let to = self.junctions[i as usize].circuit;
             if from == to {
                 continue;
             }
@@ -52,19 +52,21 @@ impl Day08 {
     }
 
     fn part2(&mut self) -> Result<helper::RunOutput, Error> {
-        let mut distances: Vec<(isize, usize, usize)> = Vec::new();
+        let mut distances: Vec<(u64, u32, u32)> = Vec::new();
         for i in 0..self.junctions.len() {
             for j in i + 1..self.junctions.len() {
                 let dist = self.junctions[i]
                     .coord
                     .euclidean_dist_squared(&self.junctions[j].coord);
-                distances.push((dist, i, j));
+                distances.push((dist as u64, i as u32, j as u32));
             }
         }
         distances.sort();
         let mut x1 = 0;
         let mut x2 = 0;
         for (_, i, j) in distances.iter().copied() {
+            let i = i as usize;
+            let j = j as usize;
             let from = self.junctions[j].circuit;
             let to = self.junctions[i].circuit;
             if from == to {
