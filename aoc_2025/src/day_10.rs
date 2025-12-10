@@ -45,10 +45,14 @@ impl Machine {
         }
 
         // Solve for each joltage one by one
-        let mut cur = vec![(0, joltage)];
-        let mut next = Vec::new();
+        // let mut cur = vec![(0, joltage)];
+        // let mut next = Vec::new();
+        let mut cur = Vec::with_capacity(10000000);
+        let mut next = Vec::with_capacity(10000000);
+        cur.push((0, joltage));
         let mut handled = vec![false; self.joltage.len()];
         let mut buttons_master: Vec<(usize, usize, Vec<usize>)> = Vec::new();
+        let mut best = u16::MAX;
         for _ in 0..self.joltage.len() {
             // find next position to handle
             buttons_master.clear();
@@ -85,6 +89,8 @@ impl Machine {
             let (_, pos, buttons) = buttons_master.remove(0);
 
             handled[pos] = true;
+            let mut added = 0usize;
+            let mut skipped = 0;
 
             for (cur_presses, cur_joltage) in cur.drain(..) {
                 if cur_joltage[pos] == 0 {
@@ -92,6 +98,7 @@ impl Machine {
                     continue;
                 }
                 fn inc(
+                    presses_total: &mut u16,
                     target: u16,
                     presses: &mut [u16; 16],
                     max_presses: &[u16; 16],
@@ -100,11 +107,13 @@ impl Machine {
                     'inc_loop: loop {
                         for i in buttons.iter().copied() {
                             if presses[i] == max_presses[i] {
+                                *presses_total -= presses[i];
                                 presses[i] = 0;
                                 continue;
                             }
                             presses[i] += 1;
-                            if presses.iter().sum::<u16>() == target {
+                            *presses_total += 1;
+                            if *presses_total == target {
                                 return true;
                             }
                             continue 'inc_loop;
@@ -125,22 +134,42 @@ impl Machine {
 
                 let mut presses = [0; 16];
                 let next_pressed = cur_presses + cur_joltage[pos];
-                'inc_loop: while inc(cur_joltage[pos], &mut presses, &max_presses, &buttons) {
+                if next_pressed >= best {
+                    continue;
+                }
+                let mut presses_total = 0;
+                'inc_loop: while inc(
+                    &mut presses_total,
+                    cur_joltage[pos],
+                    &mut presses,
+                    &max_presses,
+                    &buttons,
+                ) {
                     let mut next_joltage = cur_joltage;
                     for (pressed, times) in presses.iter().copied().enumerate() {
                         if times > 0 {
                             for b in self.buttons[pressed].iter().copied() {
                                 if times > next_joltage[b] {
+                                    skipped += 1;
                                     continue 'inc_loop;
                                 }
                                 next_joltage[b] = next_joltage[b].checked_sub(times).unwrap();
                             }
                         }
                     }
-                    next.push((next_pressed, next_joltage));
+                    added += 1;
+                    if next_joltage.iter().sum::<u16>() == 0 {
+                        if next_pressed < best {
+                            best = next_pressed;
+                            next.push((next_pressed, next_joltage));
+                        }
+                    } else if next_pressed < best {
+                        next.push((next_pressed, next_joltage));
+                    }
                 }
             }
 
+            println!("added: {added}  skipped: {skipped}");
             std::mem::swap(&mut cur, &mut next);
         }
 
