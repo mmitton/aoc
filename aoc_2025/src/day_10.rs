@@ -1,8 +1,207 @@
 #[allow(unused_imports)]
-use helper::{print, println, Error, HashMap, HashSet, Lines, LinesOpt};
+use helper::{Error, HashMap, HashSet, Lines, LinesOpt, print, println};
+use std::{collections::VecDeque, str::FromStr};
 
 #[derive(Default)]
-pub struct Day10 {}
+pub struct Day10 {
+    machines: Vec<Machine>,
+}
+
+#[derive(Debug)]
+struct Machine {
+    target: Vec<bool>,
+    buttons: Vec<Vec<usize>>,
+    joltage: Vec<u16>,
+}
+
+impl Machine {
+    fn indicator_presses(&self) -> usize {
+        let mut work: VecDeque<(usize, Vec<bool>, usize)> = VecDeque::new();
+        work.push_front((0, vec![false; self.target.len()], usize::MAX));
+
+        while let Some((presses, lights, last_pressed)) = work.pop_front() {
+            for (button_idx, button) in self.buttons.iter().enumerate() {
+                if button_idx == last_pressed {
+                    continue;
+                }
+                let mut new_lights = lights.clone();
+                for i in button.iter().copied() {
+                    new_lights[i] = !new_lights[i];
+                }
+                if new_lights == self.target {
+                    return presses + 1;
+                }
+                work.push_back((presses + 1, new_lights, button_idx));
+            }
+        }
+
+        unreachable!()
+    }
+
+    fn joltage_presses(&self) -> usize {
+        let mut joltage = [0; 16];
+        for (i, v) in self.joltage.iter().copied().enumerate() {
+            joltage[i] = v;
+        }
+
+        // Solve for each joltage one by one
+        let mut cur = vec![(0, joltage)];
+        let mut next = Vec::new();
+        let mut handled = vec![false; self.joltage.len()];
+        let mut buttons_master: Vec<(usize, usize, Vec<usize>)> = Vec::new();
+        for _ in 0..self.joltage.len() {
+            // find next position to handle
+            buttons_master.clear();
+            for i in 0..self.joltage.len() {
+                if handled[i] {
+                    continue;
+                }
+
+                let mut buttons = Vec::new();
+                for (button_idx, button) in self.buttons.iter().enumerate() {
+                    let mut found = false;
+                    for b in button.iter().copied() {
+                        if handled[b] {
+                            found = false;
+                            break;
+                        }
+                        if b == i {
+                            found = true;
+                        }
+                    }
+                    if found {
+                        buttons.push(button_idx);
+                    }
+                }
+                if buttons.is_empty() {
+                    continue;
+                }
+                buttons_master.push((buttons.len(), i, buttons));
+            }
+            if buttons_master.is_empty() {
+                break;
+            }
+            buttons_master.sort();
+            let (_, pos, buttons) = buttons_master.remove(0);
+
+            handled[pos] = true;
+
+            for (cur_presses, cur_joltage) in cur.drain(..) {
+                if cur_joltage[pos] == 0 {
+                    next.push((cur_presses, cur_joltage));
+                    continue;
+                }
+                fn inc(
+                    target: u16,
+                    presses: &mut [u16; 16],
+                    max_presses: &[u16; 16],
+                    buttons: &[usize],
+                ) -> bool {
+                    'inc_loop: loop {
+                        for i in buttons.iter().copied() {
+                            if presses[i] == max_presses[i] {
+                                presses[i] = 0;
+                                continue;
+                            }
+                            presses[i] += 1;
+                            if presses.iter().sum::<u16>() == target {
+                                return true;
+                            }
+                            continue 'inc_loop;
+                        }
+                        return false;
+                    }
+                }
+
+                let mut max_presses = [0; 16];
+                for button_idx in buttons.iter().copied() {
+                    max_presses[button_idx] = self.buttons[button_idx]
+                        .iter()
+                        .copied()
+                        .map(|i| cur_joltage[i])
+                        .min()
+                        .unwrap();
+                }
+
+                let mut presses = [0; 16];
+                let next_pressed = cur_presses + cur_joltage[pos];
+                'inc_loop: while inc(cur_joltage[pos], &mut presses, &max_presses, &buttons) {
+                    let mut next_joltage = cur_joltage;
+                    for (pressed, times) in presses.iter().copied().enumerate() {
+                        if times > 0 {
+                            for b in self.buttons[pressed].iter().copied() {
+                                if times > next_joltage[b] {
+                                    continue 'inc_loop;
+                                }
+                                next_joltage[b] = next_joltage[b].checked_sub(times).unwrap();
+                            }
+                        }
+                    }
+                    next.push((next_pressed, next_joltage));
+                }
+            }
+
+            std::mem::swap(&mut cur, &mut next);
+        }
+
+        let min_presses = cur
+            .iter()
+            .filter_map(|(presses, joltage)| {
+                if joltage.iter().any(|c| *c != 0) {
+                    None
+                } else {
+                    Some(*presses)
+                }
+            })
+            .min()
+            .unwrap() as usize;
+        min_presses
+    }
+}
+
+impl FromStr for Machine {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts: Vec<&str> = s.split_whitespace().collect();
+
+        let target_str = parts.remove(0);
+        let target = target_str
+            .chars()
+            .take(target_str.len() - 1)
+            .skip(1)
+            .map(|c| c == '#')
+            .collect();
+
+        let joltage_str = parts
+            .pop()
+            .unwrap()
+            .strip_prefix('{')
+            .unwrap()
+            .strip_suffix('}')
+            .unwrap();
+        let joltage = joltage_str.split(',').map(|v| v.parse().unwrap()).collect();
+
+        let mut buttons = Vec::new();
+        for button in parts.iter() {
+            buttons.push(
+                button
+                    .strip_prefix('(')
+                    .unwrap()
+                    .strip_suffix(')')
+                    .unwrap()
+                    .split(',')
+                    .map(|v| v.parse().unwrap())
+                    .collect(),
+            );
+        }
+
+        Ok(Machine {
+            target,
+            buttons,
+            joltage,
+        })
+    }
+}
 
 impl Day10 {
     pub fn new() -> Self {
@@ -10,17 +209,30 @@ impl Day10 {
     }
 
     fn part1(&mut self) -> Result<helper::RunOutput, Error> {
-        Err(Error::Unsolved)
+        Ok(self
+            .machines
+            .iter()
+            .map(|m| m.indicator_presses())
+            .sum::<usize>()
+            .into())
     }
 
     fn part2(&mut self) -> Result<helper::RunOutput, Error> {
-        Err(Error::Unsolved)
+        Ok(self
+            .machines
+            .iter()
+            .map(|m| m.joltage_presses())
+            .sum::<usize>()
+            .into())
     }
 }
 
 impl helper::Runner for Day10 {
     fn parse(&mut self, file: &[u8], _part: u8) -> Result<(), Error> {
-        let _lines = Lines::from_bufread(file, LinesOpt::RAW)?;
+        let lines = Lines::from_bufread(file, LinesOpt::RAW)?;
+        for line in lines.iter() {
+            self.machines.push(line.parse()?);
+        }
         Ok(())
     }
 
