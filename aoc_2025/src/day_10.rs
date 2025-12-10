@@ -39,6 +39,66 @@ impl Machine {
     }
 
     fn joltage_presses(&self) -> usize {
+        fn inc(
+            presses_total: &mut u16,
+            target: u16,
+            presses: &mut [u16; 16],
+            avail_buttons: &[usize],
+            buttons: &[Vec<usize>],
+            next_joltage: &mut [u16; 16],
+        ) -> bool {
+            'inc_loop: loop {
+                for i in avail_buttons.iter().copied() {
+                    if i == avail_buttons[0] && presses[i] != 0 {
+                        *presses_total -= presses[i];
+                        for b in buttons[i].iter().copied() {
+                            next_joltage[b] += presses[i];
+                        }
+                        presses[i] = 0;
+                        continue;
+                    }
+
+                    let max_presses = buttons[i]
+                        .iter()
+                        .copied()
+                        .map(|i| next_joltage[i])
+                        .min()
+                        .unwrap()
+                        + presses[i];
+                    // println!(
+                    //     "   {i} {} {max_presses}  {target_joltage:?} {next_joltage:?}",
+                    //     presses[i]
+                    // );
+                    if presses[i] == max_presses {
+                        *presses_total -= presses[i];
+                        for b in buttons[i].iter().copied() {
+                            next_joltage[b] += presses[i];
+                        }
+                        presses[i] = 0;
+                        continue;
+                    }
+                    if i == avail_buttons[0] {
+                        presses[i] += max_presses;
+                        for b in buttons[i].iter().copied() {
+                            next_joltage[b] -= max_presses;
+                        }
+                        *presses_total += max_presses;
+                    } else {
+                        presses[i] += 1;
+                        for b in buttons[i].iter().copied() {
+                            next_joltage[b] -= 1;
+                        }
+                        *presses_total += 1;
+                    }
+                    if *presses_total == target {
+                        return true;
+                    }
+                    continue 'inc_loop;
+                }
+                return false;
+            }
+        }
+
         let mut joltage = [0; 16];
         for (i, v) in self.joltage.iter().copied().enumerate() {
             joltage[i] = v;
@@ -52,7 +112,6 @@ impl Machine {
         cur.push((0, joltage));
         let mut handled = vec![false; self.joltage.len()];
         let mut buttons_master: Vec<(usize, usize, Vec<usize>)> = Vec::new();
-        let mut best = u16::MAX;
         for _ in 0..self.joltage.len() {
             // find next position to handle
             buttons_master.clear();
@@ -86,90 +145,34 @@ impl Machine {
                 break;
             }
             buttons_master.sort();
-            let (_, pos, buttons) = buttons_master.remove(0);
+            let (_, pos, avail_buttons) = buttons_master.remove(0);
 
             handled[pos] = true;
-            let mut added = 0usize;
-            let mut skipped = 0;
 
             for (cur_presses, cur_joltage) in cur.drain(..) {
                 if cur_joltage[pos] == 0 {
                     next.push((cur_presses, cur_joltage));
                     continue;
                 }
-                fn inc(
-                    presses_total: &mut u16,
-                    target: u16,
-                    presses: &mut [u16; 16],
-                    max_presses: &[u16; 16],
-                    buttons: &[usize],
-                ) -> bool {
-                    'inc_loop: loop {
-                        for i in buttons.iter().copied() {
-                            if presses[i] == max_presses[i] {
-                                *presses_total -= presses[i];
-                                presses[i] = 0;
-                                continue;
-                            }
-                            presses[i] += 1;
-                            *presses_total += 1;
-                            if *presses_total == target {
-                                return true;
-                            }
-                            continue 'inc_loop;
-                        }
-                        return false;
-                    }
-                }
 
-                let mut max_presses = [0; 16];
-                for button_idx in buttons.iter().copied() {
-                    max_presses[button_idx] = self.buttons[button_idx]
-                        .iter()
-                        .copied()
-                        .map(|i| cur_joltage[i])
-                        .min()
-                        .unwrap();
-                }
+                // println!("{cur_presses} {cur_joltage:?}");
 
                 let mut presses = [0; 16];
                 let next_pressed = cur_presses + cur_joltage[pos];
-                if next_pressed >= best {
-                    continue;
-                }
+                let mut next_joltage = cur_joltage;
                 let mut presses_total = 0;
-                'inc_loop: while inc(
+                while inc(
                     &mut presses_total,
                     cur_joltage[pos],
                     &mut presses,
-                    &max_presses,
-                    &buttons,
+                    &avail_buttons,
+                    &self.buttons,
+                    &mut next_joltage,
                 ) {
-                    let mut next_joltage = cur_joltage;
-                    for (pressed, times) in presses.iter().copied().enumerate() {
-                        if times > 0 {
-                            for b in self.buttons[pressed].iter().copied() {
-                                if times > next_joltage[b] {
-                                    skipped += 1;
-                                    continue 'inc_loop;
-                                }
-                                next_joltage[b] = next_joltage[b].checked_sub(times).unwrap();
-                            }
-                        }
-                    }
-                    added += 1;
-                    if next_joltage.iter().sum::<u16>() == 0 {
-                        if next_pressed < best {
-                            best = next_pressed;
-                            next.push((next_pressed, next_joltage));
-                        }
-                    } else if next_pressed < best {
-                        next.push((next_pressed, next_joltage));
-                    }
+                    next.push((next_pressed, next_joltage));
                 }
             }
 
-            println!("added: {added}  skipped: {skipped}");
             std::mem::swap(&mut cur, &mut next);
         }
 
