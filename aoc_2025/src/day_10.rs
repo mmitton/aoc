@@ -144,8 +144,7 @@ impl Machine {
             std::mem::swap(&mut cur, &mut next);
         }
 
-        let min_presses = cur
-            .iter()
+        cur.iter()
             .filter_map(|(presses, joltage)| {
                 if joltage.iter().any(|c| *c != 0) {
                     None
@@ -154,8 +153,7 @@ impl Machine {
                 }
             })
             .min()
-            .unwrap() as usize;
-        min_presses
+            .unwrap() as usize
     }
 }
 
