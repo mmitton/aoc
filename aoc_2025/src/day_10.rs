@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use helper::{Error, HashMap, HashSet, Lines, LinesOpt, print, println};
-use std::{collections::VecDeque, str::FromStr};
+use std::{collections::BTreeMap, str::FromStr};
 
 #[derive(Default)]
 pub struct Day10 {
@@ -14,178 +14,93 @@ struct Machine {
     joltage: Vec<u16>,
 }
 
-impl Machine {
-    fn indicator_presses(&self) -> usize {
-        let mut work: VecDeque<(usize, Vec<bool>, usize)> = VecDeque::new();
-        work.push_front((0, vec![false; self.target.len()], usize::MAX));
+fn indicator_presses(
+    target: &[bool],
+    joltage: &[u16],
+    buttons: &[Vec<usize>],
+) -> Vec<(Vec<usize>, Vec<u16>)> {
+    let max = 2usize.pow(buttons.len() as u32);
+    let mut lights = vec![false; target.len()];
+    let mut local = Vec::new();
+    let mut results = Vec::new();
 
-        while let Some((presses, lights, last_pressed)) = work.pop_front() {
-            for (button_idx, button) in self.buttons.iter().enumerate() {
-                if button_idx == last_pressed {
-                    continue;
+    'presses: for presses in 0..max {
+        lights.iter_mut().for_each(|l| *l = false);
+        local.clear();
+        let mut remaining_joltage: Vec<u16> = joltage.to_vec();
+        for (i, toggle) in buttons.iter().enumerate() {
+            if (presses >> i) & 1 == 1 {
+                local.push(i);
+                for j in toggle.iter().copied() {
+                    lights[j] = !lights[j];
+                    if remaining_joltage[j] == 0 {
+                        continue 'presses;
+                    } else {
+                        remaining_joltage[j] -= 1;
+                    }
                 }
-                let mut new_lights = lights.clone();
-                for i in button.iter().copied() {
-                    new_lights[i] = !new_lights[i];
-                }
-                if new_lights == self.target {
-                    return presses + 1;
-                }
-                work.push_back((presses + 1, new_lights, button_idx));
+            }
+        }
+        if lights == target {
+            results.push((local.clone(), remaining_joltage));
+        }
+    }
+
+    results
+}
+
+fn joltage_presses(
+    cache: &mut BTreeMap<Vec<u16>, Option<usize>>,
+    joltage: Vec<u16>,
+    buttons: &[Vec<usize>],
+) -> Option<usize> {
+    if !joltage.iter().any(|j| *j != 0) {
+        return Some(0);
+    }
+
+    if let Some(presses) = cache.get(&joltage) {
+        return *presses;
+    }
+
+    let target: Vec<bool> = joltage.iter().map(|j| j % 2 == 1).collect();
+    let presses = if target.contains(&true) {
+        let mut possible = indicator_presses(&target, &joltage, buttons);
+
+        let mut min_presses = None;
+        for (possible, remaining_joltage) in possible.drain(..) {
+            if let Some(remaining_presses) = joltage_presses(cache, remaining_joltage, buttons) {
+                min_presses = Some(
+                    min_presses
+                        .unwrap_or(usize::MAX)
+                        .min(possible.len() + remaining_presses),
+                );
             }
         }
 
-        unreachable!()
+        min_presses
+    } else {
+        let half_joltage = joltage.iter().copied().map(|j| j / 2).collect();
+        joltage_presses(cache, half_joltage, buttons).map(|half_presses| half_presses * 2)
+    };
+
+    cache.insert(joltage, presses);
+    presses
+}
+
+impl Machine {
+    fn indicator_presses(&self) -> usize {
+        let max_joltage: Vec<u16> = self.joltage.iter().map(|_| u16::MAX).collect();
+        let all = indicator_presses(&self.target, &max_joltage, &self.buttons);
+        all.iter().map(|(presses, _)| presses.len()).min().unwrap()
     }
 
     fn joltage_presses(&self) -> usize {
-        fn inc(
-            presses_total: &mut u16,
-            target: u16,
-            presses: &mut [u16; 16],
-            avail_buttons: &[usize],
-            buttons: &[Vec<usize>],
-            next_joltage: &mut [u16; 16],
-        ) -> bool {
-            'inc_loop: loop {
-                for i in avail_buttons.iter().copied() {
-                    if i == avail_buttons[0] && presses[i] != 0 {
-                        *presses_total -= presses[i];
-                        for b in buttons[i].iter().copied() {
-                            next_joltage[b] += presses[i];
-                        }
-                        presses[i] = 0;
-                        continue;
-                    }
-
-                    let max_presses = buttons[i]
-                        .iter()
-                        .copied()
-                        .map(|i| next_joltage[i])
-                        .min()
-                        .unwrap()
-                        + presses[i];
-                    // println!(
-                    //     "   {i} {} {max_presses}  {target_joltage:?} {next_joltage:?}",
-                    //     presses[i]
-                    // );
-                    if presses[i] == max_presses {
-                        *presses_total -= presses[i];
-                        for b in buttons[i].iter().copied() {
-                            next_joltage[b] += presses[i];
-                        }
-                        presses[i] = 0;
-                        continue;
-                    }
-                    if i == avail_buttons[0] {
-                        presses[i] += max_presses;
-                        for b in buttons[i].iter().copied() {
-                            next_joltage[b] -= max_presses;
-                        }
-                        *presses_total += max_presses;
-                    } else {
-                        presses[i] += 1;
-                        for b in buttons[i].iter().copied() {
-                            next_joltage[b] -= 1;
-                        }
-                        *presses_total += 1;
-                    }
-                    if *presses_total == target {
-                        return true;
-                    }
-                    continue 'inc_loop;
-                }
-                return false;
-            }
-        }
-
-        let mut joltage = [0; 16];
-        for (i, v) in self.joltage.iter().copied().enumerate() {
-            joltage[i] = v;
-        }
-
-        // Solve for each joltage one by one
-        // let mut cur = vec![(0, joltage)];
-        // let mut next = Vec::new();
-        let mut cur = Vec::with_capacity(10000000);
-        let mut next = Vec::with_capacity(10000000);
-        cur.push((0, joltage));
-        let mut handled = vec![false; self.joltage.len()];
-        let mut buttons_master: Vec<(usize, usize, Vec<usize>)> = Vec::new();
-        for _ in 0..self.joltage.len() {
-            // find next position to handle
-            buttons_master.clear();
-            for i in 0..self.joltage.len() {
-                if handled[i] {
-                    continue;
-                }
-
-                let mut buttons = Vec::new();
-                for (button_idx, button) in self.buttons.iter().enumerate() {
-                    let mut found = false;
-                    for b in button.iter().copied() {
-                        if handled[b] {
-                            found = false;
-                            break;
-                        }
-                        if b == i {
-                            found = true;
-                        }
-                    }
-                    if found {
-                        buttons.push(button_idx);
-                    }
-                }
-                if buttons.is_empty() {
-                    continue;
-                }
-                buttons_master.push((buttons.len(), i, buttons));
-            }
-            if buttons_master.is_empty() {
-                break;
-            }
-            buttons_master.sort();
-            let (_, pos, avail_buttons) = buttons_master.remove(0);
-
-            handled[pos] = true;
-
-            for (cur_presses, cur_joltage) in cur.drain(..) {
-                if cur_joltage[pos] == 0 {
-                    next.push((cur_presses, cur_joltage));
-                    continue;
-                }
-
-                // println!("{cur_presses} {cur_joltage:?}");
-
-                let mut presses = [0; 16];
-                let next_pressed = cur_presses + cur_joltage[pos];
-                let mut next_joltage = cur_joltage;
-                let mut presses_total = 0;
-                while inc(
-                    &mut presses_total,
-                    cur_joltage[pos],
-                    &mut presses,
-                    &avail_buttons,
-                    &self.buttons,
-                    &mut next_joltage,
-                ) {
-                    next.push((next_pressed, next_joltage));
-                }
-            }
-
-            std::mem::swap(&mut cur, &mut next);
-        }
-
-        cur.iter()
-            .filter_map(|(presses, joltage)| {
-                if joltage.iter().any(|c| *c != 0) {
-                    None
-                } else {
-                    Some(*presses)
-                }
-            })
-            .min()
-            .unwrap() as usize
+        joltage_presses(
+            &mut BTreeMap::default(),
+            self.joltage.clone(),
+            &self.buttons,
+        )
+        .unwrap()
     }
 }
 
