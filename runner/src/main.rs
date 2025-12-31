@@ -22,10 +22,11 @@ fn register(runners: &mut BTreeMap<(usize, usize), (u8, NewRunner)>) {
 }
 
 fn today(year: usize, month: usize, day: usize) -> (usize, usize) {
+    let max_days = if year <= 2024 { 25 } else { 12 };
     if month == 12 {
-        (year, day.min(25))
+        (year, day.min(max_days))
     } else {
-        (year - 1, 25)
+        (year - 1, max_days)
     }
 }
 
