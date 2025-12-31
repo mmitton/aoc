@@ -94,7 +94,7 @@ impl Day07 {
             for i in 0..n - 1 {
                 Self::generate(n - 1, a, f);
 
-                if n % 2 == 0 {
+                if n.is_multiple_of(2) {
                     a.swap(i, n - 1);
                 } else {
                     a.swap(0, n - 1);

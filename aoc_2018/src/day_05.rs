@@ -12,7 +12,7 @@ impl Polymer {
             if new_polymer.is_empty() {
                 new_polymer.push(c);
                 last = c;
-            } else if last.to_ascii_lowercase() == c.to_ascii_lowercase() && last != c {
+            } else if last.eq_ignore_ascii_case(&c) && last != c {
                 new_polymer.truncate(new_polymer.len() - 1);
                 last = new_polymer.last().copied().unwrap_or(' ');
             } else {

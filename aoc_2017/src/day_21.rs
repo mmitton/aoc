@@ -105,7 +105,7 @@ impl Image {
     }
 
     fn enhance(&mut self, rules: &[Rule]) {
-        let split = if self.rows.len() % 2 == 0 { 2 } else { 3 };
+        let split = if self.rows.len().is_multiple_of(2) { 2 } else { 3 };
         let splits = self.rows.len() / split;
 
         let mut new_rows = Vec::new();

@@ -338,7 +338,7 @@ impl Runner for Day22 {
         assert_eq!(lines.next(), None);
 
         let mut num_start = 0;
-        for (i, c) in dirs.chars().enumerate() {
+        for (i, c) in dirs.char_indices() {
             if let Some(dir) = match c {
                 'L' => Some(Path::Left),
                 'R' => Some(Path::Right),

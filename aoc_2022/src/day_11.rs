@@ -47,7 +47,7 @@ impl Day11 {
                     if PART1 {
                         worry /= 3;
                     }
-                    let throw_to = if worry % self.monkeys[idx].test == 0 {
+                    let throw_to = if worry.is_multiple_of(self.monkeys[idx].test) {
                         self.monkeys[idx].if_true
                     } else {
                         self.monkeys[idx].if_false

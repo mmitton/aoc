@@ -76,7 +76,7 @@ impl Day23 {
                 Op::Inc(r) => registers[*r] += 1,
                 Op::Jmp(offset) => next_pc = pc + offset,
                 Op::Jie(r, offset) => {
-                    if registers[*r] % 2 == 0 {
+                    if registers[*r].is_multiple_of(2) {
                         next_pc = pc + offset;
                     }
                 }

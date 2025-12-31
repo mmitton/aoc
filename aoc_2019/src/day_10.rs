@@ -151,7 +151,7 @@ impl Ord for Slope {
 impl Slope {
     fn new(mut rise: usize, mut run: usize) -> Self {
         for factor in (2..=rise).rev() {
-            if rise % factor == 0 && run % factor == 0 {
+            if rise.is_multiple_of(factor) && run.is_multiple_of(factor) {
                 rise /= factor;
                 run /= factor;
                 break;

@@ -88,7 +88,7 @@ impl Day19 {
             self.elves[next].prev = prev;
 
             elves_left -= 1;
-            if elves_left % 2 == 0 {
+            if elves_left.is_multiple_of(2) {
                 across = self.elves[next].next;
             } else {
                 across = next;

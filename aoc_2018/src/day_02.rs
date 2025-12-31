@@ -60,10 +60,10 @@ impl Day02 {
             .words
             .iter()
             .fold((0, 0), |(mut two, mut three), word| {
-                if word.letters.iter().any(|c| *c == 2) {
+                if word.letters.contains(&2) {
                     two += 1;
                 }
-                if word.letters.iter().any(|c| *c == 3) {
+                if word.letters.contains(&3) {
                     three += 1;
                 }
                 (two, three)

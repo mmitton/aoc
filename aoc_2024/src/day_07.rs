@@ -38,7 +38,7 @@ impl Equation {
                 if target > last && reverse_solve(target - last, operands, has_combine) {
                     return true;
                 }
-                if target % last == 0 && reverse_solve(target / last, operands, has_combine) {
+                if target.is_multiple_of(last) && reverse_solve(target / last, operands, has_combine) {
                     return true;
                 }
                 if has_combine {

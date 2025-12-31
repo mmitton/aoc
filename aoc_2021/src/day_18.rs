@@ -132,7 +132,7 @@ impl Number {
                             // Split
                             *a = Box::new(Number::Pair(
                                 Box::new(Number::Literal(*v / 2)),
-                                Box::new(Number::Literal((*v + 1) / 2)),
+                                Box::new(Number::Literal((*v).div_ceil(2))),
                             ));
                             return Ok((None, None));
                         }
@@ -156,7 +156,7 @@ impl Number {
                             // Split
                             *b = Box::new(Number::Pair(
                                 Box::new(Number::Literal(*v / 2)),
-                                Box::new(Number::Literal((*v + 1) / 2)),
+                                Box::new(Number::Literal((*v).div_ceil(2))),
                             ));
                             return Ok((None, None));
                         }

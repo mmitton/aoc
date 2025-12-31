@@ -49,10 +49,10 @@ impl helper::Runner for Day25 {
             };
 
             let mut heights = [0; 5];
-            for x in 0..5 {
-                for y in (0..6).rev() {
-                    if lines[y][x] == '#' {
-                        heights[x] = y + 1;
+            for (x, height) in heights.iter_mut().enumerate() {
+                for (y, line) in lines.iter().enumerate().rev() {
+                    if line[x] == '#' {
+                        *height = y + 1;
                         break;
                     }
                 }

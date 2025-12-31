@@ -65,7 +65,7 @@ impl Day18 {
                 }
             }
 
-            width = (width + 1) / 2;
+            width = width.div_ceil(2);
             match Dijkstra::find_first(Point2D::<usize>::new(0, 0), |at| {
                 at.cardinal_neighbors().into_iter().filter_map(|n| {
                     if !map.contains(&n) && n.x <= exit.x && n.y <= exit.y {

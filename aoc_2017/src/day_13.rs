@@ -12,7 +12,7 @@ impl Day13 {
     }
 
     fn scanner_at(time: usize, range: usize) -> bool {
-        time % range == 0
+        time.is_multiple_of(range)
     }
 }
 

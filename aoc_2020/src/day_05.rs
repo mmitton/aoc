@@ -15,7 +15,7 @@ impl Runner for Day05 {
     fn parse(&mut self, file: &[u8], _part: u8) -> Result<(), Error> {
         fn parse(inst: &str, mut low: usize, mut high: usize) -> usize {
             for c in inst.chars() {
-                let half_width = (high - low + 1) / 2;
+                let half_width = (high - low).div_ceil(2);
                 match c {
                     'F' | 'L' => high -= half_width,
                     'B' | 'R' => low += half_width,

@@ -16,7 +16,7 @@ impl Day13 {
         let num = num + self.key;
 
         let bits = num.count_ones();
-        bits % 2 == 0
+        bits.is_multiple_of(2)
     }
 
     fn find_paths<F>(&self, max_len: Option<usize>, stop_at: F) -> usize
