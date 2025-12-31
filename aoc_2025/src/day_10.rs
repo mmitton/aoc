@@ -1,6 +1,6 @@
 #[allow(unused_imports)]
 use helper::{Error, HashMap, HashSet, Lines, LinesOpt, print, println};
-use std::{collections::BTreeMap, str::FromStr};
+use std::str::FromStr;
 
 #[derive(Default)]
 pub struct Day10 {
@@ -14,14 +14,16 @@ struct Machine {
     joltage: Vec<u16>,
 }
 
-fn indicator_presses(
+fn indicator_presses<F>(
     target: &[bool],
     joltage: &[u16; 16],
     buttons: &[Vec<usize>],
-) -> Vec<(u32, [u16; 16])> {
+    mut callback: F,
+) where
+    F: FnMut(usize, [u16; 16]),
+{
     let max = 2usize.pow(buttons.len() as u32);
-    let mut lights = vec![false; target.len()];
-    let mut results = Vec::new();
+    let mut lights = [false; 16];
 
     'presses: for presses in 0..max {
         lights.iter_mut().for_each(|l| *l = false);
@@ -38,16 +40,14 @@ fn indicator_presses(
                 }
             }
         }
-        if lights == target {
-            results.push((presses.count_ones(), remaining_joltage));
+        if &lights[0..target.len()] == target {
+            callback(presses.count_ones() as usize, remaining_joltage);
         }
     }
-
-    results
 }
 
 fn joltage_presses(
-    cache: &mut BTreeMap<[u16; 16], Option<usize>>,
+    cache: &mut HashMap<[u16; 16], Option<usize>>,
     joltage: [u16; 16],
     buttons: &[Vec<usize>],
 ) -> Option<usize> {
@@ -61,18 +61,12 @@ fn joltage_presses(
 
     let target: Vec<bool> = joltage.iter().map(|j| j % 2 == 1).collect();
     let presses = if target.contains(&true) {
-        let mut possible = indicator_presses(&target, &joltage, buttons);
-
         let mut min_presses = None;
-        for (presses, remaining_joltage) in possible.drain(..) {
-            if let Some(remaining_presses) = joltage_presses(cache, remaining_joltage, buttons) {
-                min_presses = Some(
-                    min_presses
-                        .unwrap_or(usize::MAX)
-                        .min(presses as usize + remaining_presses),
-                );
+        indicator_presses(&target, &joltage, buttons, |p, j| {
+            if let Some(remaining_presses) = joltage_presses(cache, j, buttons) {
+                min_presses = Some(min_presses.unwrap_or(usize::MAX).min(p + remaining_presses));
             }
-        }
+        });
 
         min_presses
     } else {
@@ -87,12 +81,12 @@ fn joltage_presses(
 
 impl Machine {
     fn indicator_presses(&self) -> usize {
+        let mut presses = usize::MAX;
         let max_joltage = [u16::MAX; 16];
-        let all = indicator_presses(&self.target, &max_joltage, &self.buttons);
-        all.iter()
-            .map(|(presses, _)| *presses as usize)
-            .min()
-            .unwrap()
+        indicator_presses(&self.target, &max_joltage, &self.buttons, |p, _| {
+            presses = presses.min(p)
+        });
+        presses
     }
 
     fn joltage_presses(&self) -> usize {
@@ -101,7 +95,7 @@ impl Machine {
             .iter_mut()
             .zip(self.joltage.iter())
             .for_each(|(a, b)| *a = *b);
-        joltage_presses(&mut BTreeMap::default(), joltage, &self.buttons).unwrap()
+        joltage_presses(&mut HashMap::default(), joltage, &self.buttons).unwrap()
     }
 }
 
